@@ -216,7 +216,7 @@ class MainWindow(QMainWindow):
         # Sound Effects
 
         # Directory
-        sounds_dir = "SoundFX"
+        sounds_dir = get_resource_path("SoundFX")
 
         # Game Over
         self.game_over_sound = QSoundEffect()
