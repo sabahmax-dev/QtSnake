@@ -349,22 +349,26 @@ class MainWindow(QMainWindow):
 
         self.window.show()
         
-        # Connect resize event to update scene rectangle
-        self.window.resizeEvent = self.on_resize
+        # Install event filter to catch resize events
+        self.window.installEventFilter(self)
 
 
-    def on_resize(self, event):
-        """Handle window resize to update scene rectangle"""
-        self.updateSceneRect()
-        # Call original resize event if it exists
-        if hasattr(super(), 'resizeEvent'):
-            super().resizeEvent(event)
+    def eventFilter(self, obj, event):
+        """Filter events to catch resize events on the main window"""
+        if obj == self.window and event.type() == QtCore.QEvent.Resize:
+            # Defer scene rect update to allow layout to finish resizing
+            # Use 50ms delay to ensure Qt has finished all layout calculations
+            QtCore.QTimer.singleShot(50, self.updateSceneRect)
+        return super().eventFilter(obj, event)
     
     
     def updateSceneRect(self):
-        """Update scene rectangle to match the graphics view viewport size"""
-        viewport_rect = self.graphicsView.viewport().rect()
-        self.scene.setSceneRect(0, 0, viewport_rect.width(), viewport_rect.height())
+        """Update scene rectangle to match the graphics view size"""
+        # Use the graphics view's size, not the viewport rect
+        # This gives us the correct dimensions after layout resize
+        view_size = self.graphicsView.size()
+        new_rect = QtCore.QRectF(0, 0, view_size.width(), view_size.height())
+        self.scene.setSceneRect(new_rect)
 
 
     def update_score(self):
@@ -885,6 +889,8 @@ class MainWindow(QMainWindow):
         self.dummy_text.hide()
         self.high_score_menu.hide()
         self.in_menu = False
+        # Update scene rect to ensure correct dimensions before creating snake
+        self.updateSceneRect()
         self.snake = Snake(self.scene.width(), self.scene.height())
         self.level = 1  # Reset level
         self.create_food()
