@@ -167,14 +167,22 @@ class Obstacle(QGraphicsRectItem):
 
 # Class representing the Snake and its behavior
 class Snake(QtWidgets.QGraphicsScene):
-    def __init__(self):
+    def __init__(self, scene_width=800, scene_height=400):
         super().__init__()
         self.score = 0
         self.direction = (1, 0)  # Start moving right
         self.cube_list = [SnakeCube() for i in range(2)]  # Snake is initially 2 cubes large
         self.color = "green"  # Default color
+        
+        # Position snake in the center of the scene
+        start_x = scene_width / 2
+        start_y = scene_height / 2
+        self.cube_list[0].setX(start_x)
+        self.cube_list[0].setY(start_y)
+        self.cube_list[1].setX(start_x - self.cube_list[0].width)
+        self.cube_list[1].setY(start_y)
+        
         self.apply_color()    # Apply initial color
-        self.move()
 
 
     def move(self):
@@ -278,8 +286,10 @@ class MainWindow(QMainWindow):
 
         self.graphicsView.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.graphicsView.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.graphicsView.setAlignment(QtCore.Qt.AlignCenter)
-        self.scene.setSceneRect(-400, -200, 800, 400)
+        self.graphicsView.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)
+        
+        # Set initial scene rect based on view size, will be updated on resize
+        self.updateSceneRect()
 
 
         #take the labels define in main.ui
@@ -306,7 +316,7 @@ class MainWindow(QMainWindow):
         self.points_to_next_level = 5  # Points needed to advance to next level
         self.high_score = self.load_high_score()  # Track high score
         self.speed_boost_active = False  # Track if speed boost is active
-        self.snake = Snake()  # Initialize snake before food
+        self.snake = Snake(self.scene.width(), self.scene.height())  # Initialize snake before food
         self.shields = 0  # Number of shields/lives
         self.shield_food = None  # Reference to the shield item in the scene
         self.invincible = False       # Is snake currently invincible
@@ -338,6 +348,23 @@ class MainWindow(QMainWindow):
 
 
         self.window.show()
+        
+        # Connect resize event to update scene rectangle
+        self.window.resizeEvent = self.on_resize
+
+
+    def on_resize(self, event):
+        """Handle window resize to update scene rectangle"""
+        self.updateSceneRect()
+        # Call original resize event if it exists
+        if hasattr(super(), 'resizeEvent'):
+            super().resizeEvent(event)
+    
+    
+    def updateSceneRect(self):
+        """Update scene rectangle to match the graphics view viewport size"""
+        viewport_rect = self.graphicsView.viewport().rect()
+        self.scene.setSceneRect(0, 0, viewport_rect.width(), viewport_rect.height())
 
 
     def update_score(self):
@@ -455,8 +482,9 @@ class MainWindow(QMainWindow):
         # Try multiple times to find a valid position that doesn't collide with obstacles
         max_attempts = 20
         for attempt in range(max_attempts):
-            x = self.scene.width() * (0.1 + 0.8 * (random.random()) - 0.5)
-            y = self.scene.height() * (0.1 + 0.8 * (random.random()) - 0.5)
+            # Position food within 10%-90% of scene bounds (10% padding from edges)
+            x = self.scene.width() * (0.1 + 0.8 * random.random())
+            y = self.scene.height() * (0.1 + 0.8 * random.random())
            
             # Randomly determine food type (10% golden, 10% speed boost, 10% slow down, 70% normal)
             rand_val = random.random()
@@ -495,8 +523,8 @@ class MainWindow(QMainWindow):
        
         # If we couldn't find a valid position, just place it anyway (fallback)
         self.food = Food("normal")
-        x = self.scene.width() * (0.1 + 0.8 * (random.random()) - 0.5)
-        y = self.scene.height() * (0.1 + 0.8 * (random.random()) - 0.5)
+        x = self.scene.width() * (0.1 + 0.8 * random.random())
+        y = self.scene.height() * (0.1 + 0.8 * random.random())
         self.food.setX(x)
         self.food.setY(y)
         self.scene.addItem(self.food)
@@ -509,8 +537,9 @@ class MainWindow(QMainWindow):
 
         max_attempts = 20
         for attempt in range(max_attempts):
-            x = self.scene.width() * (0.1 + 0.8 * random.random() - 0.5)
-            y = self.scene.height() * (0.1 + 0.8 * random.random() - 0.5)
+            # Position shield within 10%-90% of scene bounds (10% padding from edges)
+            x = self.scene.width() * (0.1 + 0.8 * random.random())
+            y = self.scene.height() * (0.1 + 0.8 * random.random())
 
             temp_food = Food("shield")  
             temp_food.setX(x)
@@ -537,8 +566,9 @@ class MainWindow(QMainWindow):
         # Try multiple times to find a valid position
         max_attempts = 10
         for attempt in range(max_attempts):
-            x = self.scene.width() * (0.1 + 0.8 * (random.random()) - 0.5)
-            y = self.scene.height() * (0.1 + 0.8 * (random.random()) - 0.5)
+            # Position obstacle within 10%-90% of scene bounds (10% padding from edges)
+            x = self.scene.width() * (0.1 + 0.8 * random.random())
+            y = self.scene.height() * (0.1 + 0.8 * random.random())
            
             # Create temporary obstacle to check collisions
             temp_obstacle = Obstacle(x, y)
@@ -714,26 +744,30 @@ class MainWindow(QMainWindow):
    
     def create_level_obstacles(self):
         # Create level-specific obstacle patterns - more gradual introduction
+        # Using relative positioning based on scene dimensions
+        scene_width = self.scene.width()
+        scene_height = self.scene.height()
+        
         if self.level == 5:
-            # Add first horizontal wall at level 5
-            self.create_wall_obstacle(-300, -100, 150, 20)
+            # Add first horizontal wall at level 5 (left side, upper-middle)
+            self.create_wall_obstacle(scene_width * 0.1, scene_height * 0.3, scene_width * 0.2, 20)
        
         if self.level == 7:
-            # Add second horizontal wall at level 7
-            self.create_wall_obstacle(150, 80, 150, 20)
+            # Add second horizontal wall at level 7 (right side, lower-middle)
+            self.create_wall_obstacle(scene_width * 0.7, scene_height * 0.6, scene_width * 0.2, 20)
        
         if self.level == 10:
-            # Add first vertical wall at level 10
-            self.create_wall_obstacle(-200, -150, 20, 100)
+            # Add first vertical wall at level 10 (left-middle)
+            self.create_wall_obstacle(scene_width * 0.25, scene_height * 0.15, 20, scene_height * 0.3)
        
         if self.level == 12:
-            # Add second vertical wall at level 12
-            self.create_wall_obstacle(200, 0, 20, 100)
+            # Add second vertical wall at level 12 (right-middle)
+            self.create_wall_obstacle(scene_width * 0.75, scene_height * 0.55, 20, scene_height * 0.3)
        
         if self.level == 15:
-            # Add corner obstacles at level 15
-            self.create_wall_obstacle(-350, -180, 80, 20)
-            self.create_wall_obstacle(-350, -180, 20, 80)
+            # Add corner obstacles at level 15 (top-left corner)
+            self.create_wall_obstacle(scene_width * 0.05, scene_height * 0.05, scene_width * 0.15, 20)
+            self.create_wall_obstacle(scene_width * 0.05, scene_height * 0.05, 20, scene_height * 0.25)
    
     def create_wall_obstacle(self, x, y, width, height):
         # Create a wall-type obstacle
@@ -797,7 +831,7 @@ class MainWindow(QMainWindow):
 
 
         # Reset the game state
-        self.snake = Snake()
+        self.snake = Snake(self.scene.width(), self.scene.height())
         self.obstacles.clear()  # Clear obstacles
         self.scene.clear()  # Clear the entire scene to remove all items
         self.food = None  # Reset food
@@ -851,7 +885,7 @@ class MainWindow(QMainWindow):
         self.dummy_text.hide()
         self.high_score_menu.hide()
         self.in_menu = False
-        self.snake = Snake()
+        self.snake = Snake(self.scene.width(), self.scene.height())
         self.level = 1  # Reset level
         self.create_food()
         self.obstacles.clear()  # Clear any existing obstacles
