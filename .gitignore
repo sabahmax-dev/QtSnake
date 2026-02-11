@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Other files
+snake_highscore.json
+.DS_Store
+build
+dist
